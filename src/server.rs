@@ -507,6 +507,11 @@ async fn index(
     // handler and to `after_request` hooks. asyncio copies the current context
     // for each task it creates, so without this shared object each phase would
     // see its own isolated snapshot (see issue #1380).
+    //
+    // This also provides per-request ContextVar isolation for sync handlers
+    // (which run via `ctx.run(...)`): without a fresh context, a `ContextVar`
+    // written inside a handler would persist in the worker thread's current
+    // context and leak into the next request on that thread.
     let request_context: Py<PyAny> = match Python::with_gil(crate::asyncio::new_context) {
         Ok(ctx) => ctx,
         Err(e) => {
