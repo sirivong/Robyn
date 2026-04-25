@@ -2,7 +2,20 @@
 
 ## [Unreleased](https://github.com/sparckles/robyn/tree/HEAD)
 
-[Full Changelog](https://github.com/sparckles/robyn/compare/v0.83.0...HEAD)
+[Full Changelog](https://github.com/sparckles/robyn/compare/v0.84.0...HEAD)
+
+## [v0.84.0](https://github.com/sparckles/robyn/tree/v0.84.0) (2026-04-26)
+
+[Full Changelog](https://github.com/sparckles/robyn/compare/v0.83.0...v0.84.0)
+
+**Implemented enhancements:**
+
+- perf: skip Python Response wrapping for bare dict/list/str/bytes returns [\#1384](https://github.com/sparckles/robyn/pull/1384)
+
+**Fixed bugs:**
+
+- fix: improve OpenAPI schema generation for complex types [\#1377](https://github.com/sparckles/robyn/pull/1377)
+- fix: share contextvars Context across before/handler/after hooks [\#1382](https://github.com/sparckles/robyn/pull/1382)
 
 ## [v0.83.0](https://github.com/sparckles/robyn/tree/v0.83.0) (2026-04-12)
 
