@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import TypedDict
 
 from integration_tests.subroutes import async_auth_subrouter, di_subrouter, inherited_auth_subrouter, static_router, sub_router
-from robyn import Headers, Request, Response, Robyn, SSEMessage, SSEResponse, WebSocketDisconnect, jsonify, serve_file, serve_html
+from robyn import Headers, Request, Response, Robyn, SSEMessage, SSEResponse, StreamingResponse, WebSocketDisconnect, jsonify, serve_file, serve_html
 from robyn.authentication import AuthenticationHandler, BearerGetter, Identity
 from robyn.robyn import QueryParams, Url
 from robyn.templating import JinjaTemplate
@@ -321,6 +321,35 @@ def short_circuit_after(response: Response):
 @app.get("/sync/short_circuit")
 def short_circuit_handler():
     return "handler should not run"
+
+
+# A before_request may return a bare value that is cast to a short-circuiting
+# Response, instead of constructing a full Response object (#793).
+@app.before_request("/sync/before/bare_dict")
+def before_bare_dict(request: Request):
+    return {"blocked": True}  # bare dict -> JSON 200 response
+
+
+@app.before_request("/sync/before/bare_tuple")
+def before_bare_tuple(request: Request):
+    return ("denied", {}, 403)  # (description, headers, status_code) -> 403
+
+
+@app.get("/sync/before/bare_dict")
+def after_bare_dict():
+    return "should not reach"
+
+
+@app.get("/sync/before/bare_tuple")
+def after_bare_tuple():
+    return "should not reach"
+
+
+# An OPTIONS route registered under a static mount (/test_dir) must reach the
+# router rather than being swallowed by the static file service (#1130).
+@app.options("/test_dir/preflight")
+def options_under_static_mount():
+    return "options-under-static"
 
 
 # --- ContextVar propagation (regression test for #1380) ---
@@ -1528,6 +1557,37 @@ async def sse_async(request):
             yield SSEMessage(f"Async message {i}", event="async", id=str(i))
 
     return SSEResponse(async_event_generator())
+
+
+@app.get("/stream/bytes")
+def stream_bytes(request):
+    """Stream raw binary chunks (sync generator) — regression test for #1236."""
+
+    def gen():
+        for i in range(3):
+            yield bytes([i]) * 4  # 4 bytes per chunk
+
+    return StreamingResponse(
+        gen(),
+        media_type="application/octet-stream",
+        headers=Headers({"Content-Type": "application/octet-stream"}),
+    )
+
+
+@app.get("/stream/bytes_async")
+async def stream_bytes_async(request):
+    """Stream raw binary chunks from an async generator (#1236 + #1219)."""
+
+    async def gen():
+        for i in range(3):
+            await asyncio.sleep(0)  # exercise the async driver
+            yield bytes([i]) * 4
+
+    return StreamingResponse(
+        gen(),
+        media_type="application/octet-stream",
+        headers=Headers({"Content-Type": "application/octet-stream"}),
+    )
 
 
 @app.get("/sse/streaming_sync")
